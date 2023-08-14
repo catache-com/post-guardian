@@ -20,13 +20,13 @@ pub async fn init_postgres_connection(postgres_config: &PostgresDatabaseConfig) 
     Ok(pool)
 }
 
-pub struct PostgresHandler {
+pub struct PostgresGuardian {
     pool: Pool,
 }
 
-impl PostgresHandler {
+impl PostgresGuardian {
     pub async fn new(postgres_config: &PostgresDatabaseConfig) -> Result<Self> {
         let pool = init_postgres_connection(postgres_config).await?;
-        Ok(PostgresHandler { pool })
+        Ok(PostgresGuardian { pool })
     }
 }
