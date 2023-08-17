@@ -1,6 +1,11 @@
-mod db;
-mod models;
+use crate::server::init_server;
 
-fn main() {
-    println!("Hello, post-guardian!");
+mod db;
+mod handlers;
+mod models;
+mod server;
+
+#[tokio::main]
+async fn main() {
+    init_server().await;
 }
