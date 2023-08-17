@@ -1,7 +1,7 @@
-use crate::models;
 use anyhow::Result;
 use deadpool_postgres::{Manager, ManagerConfig, Pool};
-use models::PostgresDatabaseConfig;
+
+use crate::models::postgres::PostgresDatabaseConfig;
 use tokio_postgres::{Config, NoTls};
 
 pub async fn init_postgres_connection(postgres_config: &PostgresDatabaseConfig) -> Result<Pool> {
