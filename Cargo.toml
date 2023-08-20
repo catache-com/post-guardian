@@ -14,3 +14,5 @@ postgres-types = { version = "0.2.4", features = ["derive", "array-impls"] }
 deadpool-postgres = {version = "0.10.5", features = ["serde"]}
 serde = { version= "1",features = ["derive"] }
 serde_json = {version = "1.0.87", features = ["raw_value"]}
+tower-http = {version = "0.4.0", features=["cors"]}
+tracing = "0.1.36"
