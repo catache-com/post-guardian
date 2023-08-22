@@ -1,4 +1,4 @@
-use crate::handlers::requests::NewTableRequest;
+use crate::handlers::requests::{DropTableRequest, NewTableRequest};
 use crate::models::server::ServerError;
 use axum::{Extension, Json};
 use deadpool_postgres::Pool;
@@ -26,11 +26,6 @@ pub async fn new_table(
             ServerError::internal_server_error()
         })?;
 
-    Ok(())
-}
-
-#[instrument(level = "trace", skip_all)]
-pub async fn table_info() -> Result<(), ServerError> {
     Ok(())
 }
 
@@ -63,11 +58,24 @@ pub async fn list_tables(
 }
 
 #[instrument(level = "trace", skip_all)]
-pub async fn update_table_schema() -> Result<(), ServerError> {
-    Ok(())
-}
+pub async fn drop_table(
+    Extension(postgres_pool): Extension<Arc<Mutex<Pool>>>,
+    Json(payload): Json<DropTableRequest>,
+) -> Result<(), ServerError> {
+    let pool = postgres_pool.lock().await;
 
-#[instrument(level = "trace", skip_all)]
-pub async fn drop_table() -> Result<(), ServerError> {
+    let connection = pool.get().await.map_err(|e| {
+        error!("error getting a postgres connection from the pool: {:?}", e);
+        ServerError::internal_server_error()
+    })?;
+
+    connection
+        .execute("DROP TABLE {}", &[&payload.table_name])
+        .await
+        .map_err(|e| {
+            error!("Error dropping table '{}': {:?}", payload.table_name, e);
+            ServerError::internal_server_error()
+        })?;
+
     Ok(())
 }
