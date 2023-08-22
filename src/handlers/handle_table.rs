@@ -14,7 +14,7 @@ pub async fn new_table(
     let pool = postgres_pool.lock().await;
 
     let connection = pool.get().await.map_err(|e| {
-        error!("error setting up postgres connection: {:?}", e);
+        error!("error getting a postgres connection from the pool: {:?}", e);
         ServerError::internal_server_error()
     })?;
 
@@ -35,8 +35,31 @@ pub async fn table_info() -> Result<(), ServerError> {
 }
 
 #[instrument(level = "trace", skip_all)]
-pub async fn list_tables() -> Result<(), ServerError> {
-    Ok(())
+pub async fn list_tables(
+    Extension(postgres_pool): Extension<Arc<Mutex<Pool>>>,
+) -> Result<Vec<String>, ServerError> {
+    let pool = postgres_pool.lock().await;
+
+    let connection = pool.get().await.map_err(|e| {
+        error!("error getting a postgres connection from the pool: {:?}", e);
+        ServerError::internal_server_error()
+    })?;
+
+    let rows = connection
+        .query(
+            "SELECT tablename FROM pg_catalog.pg_tables
+        WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema'",
+            &[],
+        )
+        .await
+        .map_err(|e| {
+            error!("error listing table names: {:?}", e);
+            ServerError::internal_server_error()
+        })?;
+
+    let table_names: Vec<String> = rows.iter().map(|row| row.get("tablename")).collect();
+
+    Ok(table_names)
 }
 
 #[instrument(level = "trace", skip_all)]
