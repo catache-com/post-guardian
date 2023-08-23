@@ -1,4 +1,4 @@
-use crate::handlers::requests::NewTableRequest;
+use crate::handlers::requests::{DropTableRequest, NewTableRequest};
 use crate::models::server::ServerError;
 use axum::{Extension, Json};
 use deadpool_postgres::Pool;
@@ -14,7 +14,7 @@ pub async fn new_table(
     let pool = postgres_pool.lock().await;
 
     let connection = pool.get().await.map_err(|e| {
-        error!("error setting up postgres connection: {:?}", e);
+        error!("error getting a postgres connection from the pool: {:?}", e);
         ServerError::internal_server_error()
     })?;
 
@@ -30,21 +30,52 @@ pub async fn new_table(
 }
 
 #[instrument(level = "trace", skip_all)]
-pub async fn table_info() -> Result<(), ServerError> {
-    Ok(())
+pub async fn list_tables(
+    Extension(postgres_pool): Extension<Arc<Mutex<Pool>>>,
+) -> Result<Vec<String>, ServerError> {
+    let pool = postgres_pool.lock().await;
+
+    let connection = pool.get().await.map_err(|e| {
+        error!("error getting a postgres connection from the pool: {:?}", e);
+        ServerError::internal_server_error()
+    })?;
+
+    let rows = connection
+        .query(
+            "SELECT tablename FROM pg_catalog.pg_tables
+        WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema'",
+            &[],
+        )
+        .await
+        .map_err(|e| {
+            error!("error listing table names: {:?}", e);
+            ServerError::internal_server_error()
+        })?;
+
+    let table_names: Vec<String> = rows.iter().map(|row| row.get("tablename")).collect();
+
+    Ok(table_names)
 }
 
 #[instrument(level = "trace", skip_all)]
-pub async fn list_tables() -> Result<(), ServerError> {
-    Ok(())
-}
+pub async fn drop_table(
+    Extension(postgres_pool): Extension<Arc<Mutex<Pool>>>,
+    Json(payload): Json<DropTableRequest>,
+) -> Result<(), ServerError> {
+    let pool = postgres_pool.lock().await;
 
-#[instrument(level = "trace", skip_all)]
-pub async fn update_table_schema() -> Result<(), ServerError> {
-    Ok(())
-}
+    let connection = pool.get().await.map_err(|e| {
+        error!("error getting a postgres connection from the pool: {:?}", e);
+        ServerError::internal_server_error()
+    })?;
 
-#[instrument(level = "trace", skip_all)]
-pub async fn drop_table() -> Result<(), ServerError> {
+    connection
+        .execute("DROP TABLE {}", &[&payload.table_name])
+        .await
+        .map_err(|e| {
+            error!("Error dropping table '{}': {:?}", payload.table_name, e);
+            ServerError::internal_server_error()
+        })?;
+
     Ok(())
 }
